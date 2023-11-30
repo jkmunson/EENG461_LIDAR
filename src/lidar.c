@@ -32,6 +32,7 @@
 
 uint32_t points_buf_0[POINTS_BUF_SIZE];
 uint32_t points_buf_1[POINTS_BUF_SIZE];
+uint32_t points_smooth[POINTS_BUF_SIZE];
 uint32_t *active_point_buffer;
 uint32_t *receiving_point_buffer;
 
@@ -42,26 +43,28 @@ void zero_point_buf(void) {
 }
 
 //Fill in any missing points with the average of the closest points to the left and the right.
-//While the lidar is operating correctly, this should mostly never happen.
+//Unfortunately the lidar has significant "holes" in it's data.
 void process_point_buff(){
 	
-	for(int i = 1; i < POINTS_BUF_SIZE; i++){
+	for(int i = 0; i < POINTS_BUF_SIZE; i++){
 		
 		if(receiving_point_buffer[i] != 0) continue;
 		//Find closest point to the "left" that has a value
 		int leftidx = (i == 0) ? (POINTS_BUF_SIZE-1) : (i-1);
 		bool from_top = (leftidx > 0);
 		while ((receiving_point_buffer[leftidx] == 0)) {
-			if (--leftidx < 0) {
+			leftidx--;
+			if (leftidx < 0) {
 				if(from_top){
 					receiving_point_buffer[i] = 1; // No data was collected from lidar???
 					continue;
 				} else {
 					leftidx = (POINTS_BUF_SIZE-1);
+					from_top = true;
 				}
 			}
 		}
-		printlf("here!");
+		
 		//Find closest point to the right that has a value
 		int rightidx = (i < POINTS_BUF_SIZE) ? (i+1) : 0;
 		bool from_0 = !rightidx;
@@ -93,6 +96,8 @@ void setup_lidar_comms(void){
 	ROM_GPIODirModeSet(GPIO_PORTD_BASE, LID_PINS, GPIO_DIR_MODE_HW);
 	ROM_UARTConfigSetExpClk(LID_BASE, ROM_SysCtlClockGet(), LID_BAUD, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	
+	receiving_point_buffer = points_smooth;
+	zero_point_buf();
 	receiving_point_buffer = points_buf_0;
 	zero_point_buf();
 	receiving_point_buffer[0] = 1;
@@ -100,6 +105,8 @@ void setup_lidar_comms(void){
 	active_point_buffer = points_buf_0;
 	receiving_point_buffer = points_buf_1;
 	zero_point_buf();
+	
+	
 }
 
 void start_lidar_scan(void) {
@@ -125,8 +132,12 @@ int angle_map(int32_t start, int32_t end, int count, int position){
 }
 
 void print_angles(void) {
-	for(int i = 0; i < 360; i++) {
-		printlf("%d: \t %d", i, active_point_buffer[i]);
+	for(int i = 0; i<360; i++){
+		points_smooth[i] = (points_smooth[i]*3 + active_point_buffer[i])/4;
+	}
+	printlf("\033c");
+	for(int i = 15; i < 360; i+=15) {
+		printlf("%d:%d\n", i, points_smooth[i]);
 	}
 }
 
@@ -201,34 +212,36 @@ void process_packets(void) {
 				//ROM_UARTCharPut(UART0_BASE, current_scan.bytes[current_byte-1]);
 				//If we're not done receiving the header, continue
 				if(current_byte < sizeof(current_scan)) break;
-				printlf("Got scan header\n");
+				//printlf("Got scan header\n");
 				if(current_scan.header.start_code != SCAN_MAGIC){
-					printlf("Scan header invalid! Reset\n");
-					stop_lidar_scan();
-					start_lidar_scan();
-					comm_state = COMM_WAITING;
+					//printlf("Scan header invalid! Reset\n");
+					//stop_lidar_scan();
+					//start_lidar_scan();
+					comm_state = WAITING_SCAN_HEADER;
 					current_byte=0;
 					return;
 				}
 				if(current_scan.header.type == START_PACKET) {
 					//Swap buffers
-					printlf("START PACKET\n");
-					process_point_buff();printlf("here");
+					//printlf("START PACKET\n");
+					process_point_buff();
 					uint32_t *temp = active_point_buffer;
 					active_point_buffer = receiving_point_buffer;
 					receiving_point_buffer = temp;
 					current_byte = 0;
-					zero_point_buf();printlf("here");
+					zero_point_buf();
 					comm_state = WAITING_SCAN_HEADER;
 					print_angles();
 					
 				} else {
+					//printlf("Receiving Data\n");
 					comm_state = RECEIVING_SCAN_DATA;
 					current_byte = 0;
 				}
 			} break;
 			
 			case RECEIVING_SCAN_DATA:{
+				//printlf("byte%d/%d\n", current_byte, current_scan.header.sample_count*2);
 				static uint8_t lsb, msb;
 				switch(current_byte % 2){
 					case 0:
@@ -238,6 +251,7 @@ void process_packets(void) {
 					case 1:
 						msb = ROM_UARTCharGet(LID_BASE);
 						uint32_t val = ((msb << 8) | lsb) >> 2;
+						//printlf("%d ",val);
 						int angle = angle_map(current_scan.header.start_angle, current_scan.header.end_angle, current_scan.header.sample_count, current_byte>>1);
 						//Average in points that map to the same integer angle.
 						if (receiving_point_buffer[angle]) {
@@ -245,7 +259,8 @@ void process_packets(void) {
 						} else {
 							receiving_point_buffer[angle] = val;
 						}
-				} break;
+					break;
+				};
 				if((++current_byte)>>1 == current_scan.header.sample_count){
 					current_byte = 0;
 					comm_state = WAITING_SCAN_HEADER;
