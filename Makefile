@@ -11,7 +11,7 @@ FPU		= -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 
 AFLAGS	= -mthumb ${CPU} ${FPU} -MD
 
-CFLAGS	= -mthumb ${CPU} ${FPU} -Og -ffunction-sections -fno-builtin -fdata-sections -MD -std=c17 -Wall -Wextra -Wdouble-promotion -pedantic -c -Dgcc -g -I driver -I src -I sys 
+CFLAGS	= -mthumb ${CPU} ${FPU} -Og -ffunction-sections -fno-builtin -fdata-sections -MD -std=c17 -Wall -Wextra -Wdouble-promotion -Wno-unused -pedantic -c -Dgcc -g -I driver -I src -I sys 
 
 CFLAGS	+= -DPART_TM4C123GH6PM -DTARGET_IS_BLIZZARD_RA1
 

@@ -2,7 +2,6 @@
 #include "main.h"
 #include "common/tm4c123gh6pm.h"
 #include "uart_print.h"
-#include "sonic_sensor.h"
 #include <stdbool.h>
 #include <driverlib/rom.h>
 
@@ -13,21 +12,6 @@ volatile int32_t uptime_seconds;
 volatile uint64_t timer1_overflow_count;
 
 #define TIMER_ISR_IS_PENDING (TIMER1_MIS_R & TIMER_ICR_TATOCINT)
-
-void configureAdcTimer (void) {
-
-	SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R0; //Enable Run Mode Clock Gating Control for Timer 0
-
-	while (!(SYSCTL_PRTIMER_R & SYSCTL_RCGCTIMER_R0)) {}
-
-	TIMER0_CTL_R &= ~TIMER_CTL_TAEN; //Disable Timer
-	TIMER0_CTL_R |= TIMER_CTL_TASTALL; //Stall for debug
-	TIMER0_CFG_R = TIMER_CFG_32_BIT_TIMER;
-	TIMER0_TAMR_R |= TIMER_TAMR_TAMR_PERIOD; //Set Timer to count down periodically
-	TIMER0_TAILR_R = 16000 - 1;
-	TIMER0_CTL_R |= TIMER_CTL_TAOTE; //Set as an ADC Trigger
-	TIMER0_CTL_R |= TIMER_CTL_TAEN; //Enable Timer
-}
 
 void configureDebounceTimer(void) {
 
@@ -46,8 +30,6 @@ void configureDebounceTimer(void) {
 	NVIC_EN0_R = 1 << (INT_TIMER1A - 16);
 	TIMER1_CTL_R |= TIMER_CTL_TAEN; //Enable Timer
 }
-
-
 
 void timeKeeperISR (void) {
 	static char second_counter = 0;
