@@ -35,8 +35,17 @@ int main (void) {
 	printlf("Starting lidar scan#####################\n");
 	clear_lidar_IO();
 	ROM_SysCtlDelay(20000);
+	ROM_UARTCharPut(UART2_BASE, 0xA5);
+	ROM_UARTCharPut(UART2_BASE, 0x0B);
+	ROM_UARTCharPut(UART2_BASE, 0xA5);
+	ROM_UARTCharPut(UART2_BASE, 0x0B);
+	ROM_UARTCharPut(UART2_BASE, 0xA5);
+	ROM_UARTCharPut(UART2_BASE, 0x0B);
+	ROM_UARTCharPut(UART2_BASE, 0xA5);
+	ROM_UARTCharPut(UART2_BASE, 0x0B);
 	clear_lidar_IO();
 	start_lidar_scan();
+	
 	while(1) {
 		process_packets();
 	}

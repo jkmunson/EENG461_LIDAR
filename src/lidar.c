@@ -66,7 +66,7 @@ void process_point_buff(){
 		}
 		
 		//Find closest point to the right that has a value
-		int rightidx = (i < POINTS_BUF_SIZE) ? (i+1) : 0;
+		int rightidx = (i+1 < POINTS_BUF_SIZE) ? (i+1) : 0;
 		bool from_0 = !rightidx;
 		while(receiving_point_buffer[rightidx] == 0) {
 			if(++rightidx >= POINTS_BUF_SIZE){
@@ -80,6 +80,14 @@ void process_point_buff(){
 			}
 		}
 		receiving_point_buffer[i] = (receiving_point_buffer[leftidx] + receiving_point_buffer[rightidx])/2;
+	}
+	return;
+	for(int j = 2; j; j--){
+		for(int i = 0; i < 360; i++) {
+			uint32_t near = 0;
+			for(int k = 1; k < 6; k++) near += receiving_point_buffer[(i+k)%360] + receiving_point_buffer[(i+(360-k)) % 360];
+			receiving_point_buffer[i] = (receiving_point_buffer[i] + near)/11;
+		}
 	}
 }
 
@@ -96,8 +104,9 @@ void setup_lidar_comms(void){
 	ROM_GPIODirModeSet(GPIO_PORTD_BASE, LID_PINS, GPIO_DIR_MODE_HW);
 	ROM_UARTConfigSetExpClk(LID_BASE, ROM_SysCtlClockGet(), LID_BAUD, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	
-	receiving_point_buffer = points_smooth;
-	zero_point_buf();
+	for(int i = 0; i < 360; i++) {
+		points_smooth[i] = 1000;
+	}
 	receiving_point_buffer = points_buf_0;
 	zero_point_buf();
 	receiving_point_buffer[0] = 1;
@@ -132,12 +141,10 @@ int angle_map(int32_t start, int32_t end, int count, int position){
 }
 
 void print_angles(void) {
-	for(int i = 0; i<360; i++){
-		points_smooth[i] = (points_smooth[i]*3 + active_point_buffer[i])/4;
-	}
+
 	printlf("\033c");
-	for(int i = 15; i < 360; i+=15) {
-		printlf("%d:%d\n", i, points_smooth[i]);
+	for(int i = 0; i < 360; i+=3) {
+		printlf("%d:%d\n", i, active_point_buffer[i]);
 	}
 }
 
@@ -146,6 +153,7 @@ void process_packets(void) {
 	static uint16_t current_byte;
 	static PacketHeader current_message;
 	static ScanHeader current_scan;
+	static int scan_count = 0;
 	
 	//while(ROM_UARTCharsAvail(LID_BASE)) {
 	//	ROM_UARTCharPut(UART0_BASE,ROM_UARTCharGet(LID_BASE));
@@ -222,8 +230,11 @@ void process_packets(void) {
 					return;
 				}
 				if(current_scan.header.type == START_PACKET) {
-					//Swap buffers
+					ROM_UARTCharGet(LID_BASE); // Eat the one zero value
+					ROM_UARTCharGet(LID_BASE);
 					//printlf("START PACKET\n");
+					if(++scan_count < 1) break;
+					scan_count = 0;
 					process_point_buff();
 					uint32_t *temp = active_point_buffer;
 					active_point_buffer = receiving_point_buffer;
@@ -251,14 +262,13 @@ void process_packets(void) {
 					case 1:
 						msb = ROM_UARTCharGet(LID_BASE);
 						uint32_t val = ((msb << 8) | lsb) >> 2;
-						//printlf("%d ",val);
+						if((val > 20000) || (val < 25)) break;
 						int angle = angle_map(current_scan.header.start_angle, current_scan.header.end_angle, current_scan.header.sample_count, current_byte>>1);
 						//Average in points that map to the same integer angle.
-						if (receiving_point_buffer[angle]) {
-							receiving_point_buffer[angle] = (receiving_point_buffer[angle] + val) >> 1;
-						} else {
-							receiving_point_buffer[angle] = val;
-						}
+						
+						receiving_point_buffer[angle] = (receiving_point_buffer[angle] + val)/2;
+
+						//printlf("%d:%d\n", angle, val);
 					break;
 				};
 				if((++current_byte)>>1 == current_scan.header.sample_count){
