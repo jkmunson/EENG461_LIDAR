@@ -19,33 +19,22 @@
 
 #define LID_BASE UART2_BASE
 
-//defined bytes for the lidar
-#define MAGIC		0xA5
-#define START		0x60
-#define STOP		0x65
-#define DEV_INFO	0x90
-#define HEALTH		0x92
-#define RESET		0x40
+//defined bytes for the lidar commands
+#define COMMAND_MAGIC		0xA5
+#define COMMAND_START		0x60
+#define COMMAND_STOP		0x65
+#define COMMAND_DEV_INFO	0x90
+#define COMMAND_HEALTH		0x92
+#define COMMAND_RESET		0x40
 
-#define HEADER_MAGIC 0x5AA5
+#define RESPONSE_HEADER_MAGIC 0x5AA5
 #define SCAN_MAGIC 0x55AA
+#define SCAN_MAGIC_0 0xAA
+#define SCAN_MAGIC_1 0x55
 
-uint32_t points_buf_0[POINTS_BUF_SIZE];
-uint32_t points_buf_1[POINTS_BUF_SIZE];
-uint32_t points_smooth[POINTS_BUF_SIZE];
-uint32_t *active_point_buffer;
-uint32_t *receiving_point_buffer;
-
-void zero_point_buf(void) {
-	for(int i = 0; i < POINTS_BUF_SIZE; i++){
-		receiving_point_buffer[i] = 0;
-	}
-}
-
-//Fill in any missing points with the average of the closest points to the left and the right.
-//Unfortunately the lidar has significant "holes" in it's data.
+#define DEBUG_LID
+/*
 void process_point_buff(){
-	
 	for(int i = 0; i < POINTS_BUF_SIZE; i++){
 		
 		if(receiving_point_buffer[i] != 0) continue;
@@ -81,13 +70,13 @@ void process_point_buff(){
 		}
 		receiving_point_buffer[i] = (receiving_point_buffer[leftidx] + receiving_point_buffer[rightidx])/2;
 	}
-	return;
-	for(int j = 2; j; j--){
-		for(int i = 0; i < 360; i++) {
-			uint32_t near = 0;
-			for(int k = 1; k < 6; k++) near += receiving_point_buffer[(i+k)%360] + receiving_point_buffer[(i+(360-k)) % 360];
-			receiving_point_buffer[i] = (receiving_point_buffer[i] + near)/11;
-		}
+}*/
+
+void process_points(uint16_t *scan_points){
+
+	for(int i = 0; i < 360; i++) {
+		printlf("%d:%d\n", i, scan_points[i]);
+		scan_points[i] = 0;
 	}
 }
 
@@ -102,190 +91,152 @@ void setup_lidar_comms(void){
 	ROM_GPIOPadConfigSet(GPIO_PORTD_BASE, LID_PINS, GPIO_STRENGTH_8MA, GPIO_PIN_TYPE_STD);
 	ROM_GPIOPadConfigSet(GPIO_PORTD_BASE, RX_PIN, GPIO_STRENGTH_8MA, GPIO_PIN_TYPE_STD_WPU);
 	ROM_GPIODirModeSet(GPIO_PORTD_BASE, LID_PINS, GPIO_DIR_MODE_HW);
+	//ROM_UARTClockSourceSet(LID_BASE, UART_CLOCK_SYSTEM);
 	ROM_UARTConfigSetExpClk(LID_BASE, ROM_SysCtlClockGet(), LID_BAUD, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
-	
-	for(int i = 0; i < 360; i++) {
-		points_smooth[i] = 1000;
-	}
-	receiving_point_buffer = points_buf_0;
-	zero_point_buf();
-	receiving_point_buffer[0] = 1;
-	process_point_buff();
-	active_point_buffer = points_buf_0;
-	receiving_point_buffer = points_buf_1;
-	zero_point_buf();
-	
 	
 }
 
 void start_lidar_scan(void) {
-	ROM_UARTCharPut(LID_BASE, MAGIC);
-	ROM_UARTCharPut(LID_BASE, START);
+	ROM_UARTCharPut(LID_BASE, COMMAND_MAGIC);
+	ROM_UARTCharPut(LID_BASE, COMMAND_START);
 }
 
 void stop_lidar_scan(void) {
-	ROM_UARTCharPut(LID_BASE, MAGIC);
-	ROM_UARTCharPut(LID_BASE, STOP);
+	ROM_UARTCharPut(LID_BASE, COMMAND_MAGIC);
+	ROM_UARTCharPut(LID_BASE, COMMAND_STOP);
 }
 
 void clear_lidar_IO(void){
 	while(ROM_UARTCharsAvail(LID_BASE)){
 		ROM_UARTCharGet(LID_BASE);
+		ROM_UARTRxErrorClear(LID_BASE);
 	}
 }
 
-int angle_map(int32_t start, int32_t end, int count, int position){
-	const int32_t delta = (end > start) ? (end - start) : (start - end);
-	const int32_t delta_per_count = delta/count;
-	return (((position*delta_per_count) + start) / 64) % 360;
+uint16_t map_to_degree(uint16_t start, uint16_t end, uint16_t num){
+	float delta = ((float)end)/64.0f - ((float)start)/64.0f;
+	float degree = (float)start + (delta * num);
+	
+	#ifdef DEBUG_LID
+	if(degree < 0 || degree >360) printlf("BAD ANGLE?\n");
+	#endif
+	return (uint16_t)degree;
 }
 
-void print_angles(void) {
+uint16_t convert_to_mm(uint16_t point){
+	return point >> 2; //divide by 4
+}
 
-	printlf("\033c");
-	for(int i = 0; i < 360; i+=3) {
-		printlf("%d:%d\n", i, active_point_buffer[i]);
+//Returns true if header fails checksum & other verification
+bool check_header(ScanHeader *head) {
+	if(head->header.start_code != SCAN_MAGIC) return true; //incorret start word
+	if(!(head->header.start_angle & 0x1)) return true; //incorrect angle data
+	if(!(head->header.end_angle & 0x1)) return true; //incorrect angle data
+	
+	uint16_t checksum = 0;
+	//size minus 2 - don't include checksum word
+	for(size_t i = 0; i < sizeof(*head) - 2; ) {
+		uint8_t low = head->bytes[i++];
+		uint8_t high = head->bytes[i++];
+		checksum ^= (high << 8) | low;
 	}
+	
+	return (checksum != head->header.checksum);
 }
 
 void process_packets(void) {
-	static enum {COMM_WAITING, RECEIVING_HEADER, WAITING_SCAN_HEADER, RECEIVING_SCAN_HEADER, RECEIVING_SCAN_DATA, RECEIVING_HEALTH_REPORT} comm_state = COMM_WAITING;
-	static uint16_t current_byte;
-	static PacketHeader current_message;
+	static enum {COMM_WAITING, RECEIVING_HEADER, WAITING_SCAN_HEADER, RECEIVING_SCAN_HEADER, RECEIVING_SCAN_DATA, RECEIVING_HEALTH_REPORT} comm_state = WAITING_SCAN_HEADER;
+	static uint32_t current_byte = 0;
 	static ScanHeader current_scan;
-	static int scan_count = 0;
-	
-	//while(ROM_UARTCharsAvail(LID_BASE)) {
-	//	ROM_UARTCharPut(UART0_BASE,ROM_UARTCharGet(LID_BASE));
-	//} return;
+	static uint32_t current_point = 0;
+	static uint16_t scan_points[360];
 	
 	while(ROM_UARTCharsAvail(LID_BASE)) {
+		uint8_t received = ROM_UARTCharGet(LID_BASE);
+		if(ROM_UARTRxErrorGet(UART2_BASE)) goto reset;
+		
 		switch(comm_state) {
-			case COMM_WAITING:{
-				char tmp = ROM_UARTCharGet(LID_BASE);
-				if(tmp != 0xA5 && tmp != 0xAA ) break; // Really we're looking for 0xA5, but is 0xAA is seen, this will lead to a reset.
-				comm_state = RECEIVING_HEADER;
-				current_byte = 1;
-				current_message.bytes[0] = 0xA5;
-				printlf("Header Started\n");
-			} break;
-			
-			case RECEIVING_HEADER: {
-				current_message.bytes[current_byte++] = ROM_UARTCharGet(LID_BASE);
-				//printlf(" %d : %d\n", current_message.bytes[current_byte-1], current_byte-1);
-				//If we're not done receiving the header, continue
-				if(current_byte < sizeof(current_message)) break; 
-				
-				//process the header
-				if(current_message.header.start_code != HEADER_MAGIC) {
-					printlf("Unexpected Header %d, resetting\n", current_message.header.start_code);
-					stop_lidar_scan();
-					clear_lidar_IO();
-					ROM_SysCtlDelay(20000);
-					clear_lidar_IO();
-					start_lidar_scan();
-					comm_state = COMM_WAITING;
-					break;
-				} else {
-					printlf("Got valid header!\n");
-				}
-				
-				switch(current_message.header.type){
-					case TYPE_SCAN:
-						comm_state = WAITING_SCAN_HEADER;
-						current_byte = 0;
-						printlf("Header is start of scan\n");
-					break;
-					
-					case TYPE_HEALTH_STATUS:
-						comm_state = RECEIVING_HEALTH_REPORT;
-					break;
-					
-					default:
-						printlf("Unexpected message type %d. Discarding...\n", (uint32_t)current_message.header.type);
-						comm_state = COMM_WAITING;
-					break;
-				}
-			} break;
-			
+		//Haven't started a data packet yet - look for magic header
 			case WAITING_SCAN_HEADER:{
-				if(ROM_UARTCharGet(LID_BASE) != 0xAA) break;
-				comm_state = RECEIVING_SCAN_HEADER;
-				current_byte = 1;
-				current_scan.bytes[0] = 0xAA;
-			} break;
+				//Is this the first, or second byte in the header magic number
+				switch(current_byte++) {
+					case 0:
+						if(received != SCAN_MAGIC_0) goto reset;
+						current_scan.bytes[0] = received;
+					break;
 				
-			case RECEIVING_SCAN_HEADER: {
-				current_scan.bytes[current_byte++] = ROM_UARTCharGet(LID_BASE);
-				//ROM_UARTCharPut(UART0_BASE, current_scan.bytes[current_byte-1]);
-				//If we're not done receiving the header, continue
-				if(current_byte < sizeof(current_scan)) break;
-				//printlf("Got scan header\n");
-				if(current_scan.header.start_code != SCAN_MAGIC){
-					//printlf("Scan header invalid! Reset\n");
-					//stop_lidar_scan();
-					//start_lidar_scan();
-					comm_state = WAITING_SCAN_HEADER;
-					current_byte=0;
-					return;
+					case 1:
+						if(received != SCAN_MAGIC_1) goto reset;
+						current_scan.bytes[1] = received;
+						comm_state = RECEIVING_SCAN_HEADER;
+					break;
 				}
+			} break;
+		
+			case RECEIVING_SCAN_HEADER:{
+				current_scan.bytes[current_byte++] = received;
+				
+				//Still receiving the header
+				if(current_byte < sizeof(current_scan)) continue;
+				
+				if(check_header(&current_scan)) goto reset;
+				
+				//Start of a new scan sequence - process the last, complete, scan sequence
 				if(current_scan.header.type == START_PACKET) {
-					ROM_UARTCharGet(LID_BASE); // Eat the one zero value
-					ROM_UARTCharGet(LID_BASE);
-					//printlf("START PACKET\n");
-					if(++scan_count < 1) break;
-					scan_count = 0;
-					process_point_buff();
-					uint32_t *temp = active_point_buffer;
-					active_point_buffer = receiving_point_buffer;
-					receiving_point_buffer = temp;
-					current_byte = 0;
-					zero_point_buf();
-					comm_state = WAITING_SCAN_HEADER;
-					print_angles();
-					
-				} else {
-					//printlf("Receiving Data\n");
-					comm_state = RECEIVING_SCAN_DATA;
-					current_byte = 0;
+					process_points(scan_points);
+					goto reset;
 				}
+				
+				//Header is good, read in the points
+				current_byte = 0;
+				current_point = 0;
+				comm_state = RECEIVING_SCAN_DATA;
 			} break;
 			
 			case RECEIVING_SCAN_DATA:{
-				//printlf("byte%d/%d\n", current_byte, current_scan.header.sample_count*2);
-				static uint8_t lsb, msb;
-				switch(current_byte % 2){
+				static uint8_t low, high;
+				
+				switch(current_byte){
 					case 0:
-						lsb = ROM_UARTCharGet(LID_BASE);
+						low = received;
 					break;
 					
-					case 1:
-						msb = ROM_UARTCharGet(LID_BASE);
-						uint32_t val = ((msb << 8) | lsb) >> 2;
-						if((val > 20000) || (val < 25)) break;
-						int angle = angle_map(current_scan.header.start_angle, current_scan.header.end_angle, current_scan.header.sample_count, current_byte>>1);
-						//Average in points that map to the same integer angle.
+					case 1: 
+						high = received;
+						uint16_t point = (high << 8) | low;
+						uint16_t angle = map_to_degree(current_scan.header.start_angle>>1, current_scan.header.end_angle>>1, current_point);
 						
-						receiving_point_buffer[angle] = (receiving_point_buffer[angle] + val)/2;
-
-						//printlf("%d:%d\n", angle, val);
+						//Only read in the first point at a particular degree. Overwrite "0" points
+						if(!scan_points[angle]) scan_points[angle] = convert_to_mm(point);
+						
+						//If we've read in all the points available in this packet, reset for the next packet.
+						if(++current_point >= current_scan.header.sample_count) goto reset;
 					break;
-				};
-				if((++current_byte)>>1 == current_scan.header.sample_count){
-					current_byte = 0;
-					comm_state = WAITING_SCAN_HEADER;
 				}
+				
 			} break;
-			
-			case RECEIVING_HEALTH_REPORT:
-				//stub
-				comm_state = COMM_WAITING;
-			break;
-			
-			default:
-				printlf("Invalid comm state - resetting");
-				comm_state = COMM_WAITING;
-			break;
 		}
 	}
+	return;
+	
+	//HOT TAKE: Exception handling is just goto in fancy clothes
+	reset:
+	ROM_UARTRxErrorClear(LID_BASE);
+	current_byte = 0;
+	current_point = 0;
+	comm_state = WAITING_SCAN_HEADER;
+	#ifdef DEBUG_LID
+	printlf("R");
+	#endif
 }
+
+
+
+
+
+
+
+
+
+
+

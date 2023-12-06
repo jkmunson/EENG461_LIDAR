@@ -36,187 +36,172 @@ LOAD objs/src/timers.o
 LOAD objs/src/uart_print.o
 LOAD objs/sys/startup_gcc.o
 
-.text           0x00000000      0xdb7
+.text           0x00000000      0xabf
                 0x00000000                        _text = .
  *(.isr_vector)
  .isr_vector    0x00000000      0x26c objs/sys/startup_gcc.o
                 0x00000000                g_pfnVectors
  *(.text*)
- .text.zero_point_buf
-                0x0000026c       0x1c objs/src/lidar.o
-                0x0000026c                zero_point_buf
- .text.process_point_buff
-                0x00000288       0xa8 objs/src/lidar.o
-                0x00000288                process_point_buff
+ .text.process_points
+                0x0000026c       0x28 objs/src/lidar.o
+                0x0000026c                process_points
  .text.setup_lidar_comms
-                0x00000330       0xfc objs/src/lidar.o
-                0x00000330                setup_lidar_comms
+                0x00000294       0xb0 objs/src/lidar.o
+                0x00000294                setup_lidar_comms
  .text.start_lidar_scan
-                0x0000042c       0x24 objs/src/lidar.o
-                0x0000042c                start_lidar_scan
+                0x00000344       0x24 objs/src/lidar.o
+                0x00000344                start_lidar_scan
  .text.stop_lidar_scan
-                0x00000450       0x24 objs/src/lidar.o
-                0x00000450                stop_lidar_scan
+                0x00000368       0x24 objs/src/lidar.o
+                0x00000368                stop_lidar_scan
  .text.clear_lidar_IO
-                0x00000474       0x28 objs/src/lidar.o
-                0x00000474                clear_lidar_IO
- .text.angle_map
-                0x0000049c       0x38 objs/src/lidar.o
-                0x0000049c                angle_map
- .text.print_angles
-                0x000004d4       0x34 objs/src/lidar.o
-                0x000004d4                print_angles
+                0x0000038c       0x30 objs/src/lidar.o
+                0x0000038c                clear_lidar_IO
+ .text.map_to_degree
+                0x000003bc       0x70 objs/src/lidar.o
+                0x000003bc                map_to_degree
+ .text.convert_to_mm
+                0x0000042c        0x4 objs/src/lidar.o
+                0x0000042c                convert_to_mm
+ .text.check_header
+                0x00000430       0x50 objs/src/lidar.o
+                0x00000430                check_header
  .text.process_packets
-                0x00000508      0x2a0 objs/src/lidar.o
-                0x00000508                process_packets
- .text.main     0x000007a8       0xd0 objs/src/main.o
-                0x000007a8                main
+                0x00000480      0x140 objs/src/lidar.o
+                0x00000480                process_packets
+ .text.main     0x000005c0       0x6c objs/src/main.o
+                0x000005c0                main
  .text.timeKeeperISR
-                0x00000878       0x64 objs/src/timers.o
-                0x00000878                timeKeeperISR
+                0x0000062c       0x64 objs/src/timers.o
+                0x0000062c                timeKeeperISR
  .text.setup_uart_printer
-                0x000008dc       0x70 objs/src/uart_print.o
-                0x000008dc                setup_uart_printer
- .text.putchar  0x0000094c       0x48 objs/src/uart_print.o
-                0x0000094c                putchar
+                0x00000690       0x7c objs/src/uart_print.o
+                0x00000690                setup_uart_printer
+ .text.putchar  0x0000070c       0x44 objs/src/uart_print.o
+                0x0000070c                putchar
  .text.print_string
-                0x00000994       0x16 objs/src/uart_print.o
-                0x00000994                print_string
- *fill*         0x000009aa        0x2 
+                0x00000750       0x16 objs/src/uart_print.o
+                0x00000750                print_string
+ *fill*         0x00000766        0x2 
  .text.print_unsigned_decimal
-                0x000009ac       0x4c objs/src/uart_print.o
-                0x000009ac                print_unsigned_decimal
+                0x00000768       0x4c objs/src/uart_print.o
+                0x00000768                print_unsigned_decimal
  .text.print_decimal
-                0x000009f8       0x18 objs/src/uart_print.o
-                0x000009f8                print_decimal
+                0x000007b4       0x18 objs/src/uart_print.o
+                0x000007b4                print_decimal
  .text.print_float
-                0x00000a10      0x120 objs/src/uart_print.o
-                0x00000a10                print_float
- .text.printlf  0x00000b30       0xec objs/src/uart_print.o
-                0x00000b30                printlf
- .text.NmiSR    0x00000c1c        0x2 objs/sys/startup_gcc.o
+                0x000007cc      0x120 objs/src/uart_print.o
+                0x000007cc                print_float
+ .text.printlf  0x000008ec       0xec objs/src/uart_print.o
+                0x000008ec                printlf
+ .text.NmiSR    0x000009d8        0x2 objs/sys/startup_gcc.o
  .text.FaultISR
-                0x00000c1e        0x2 objs/sys/startup_gcc.o
+                0x000009da        0x2 objs/sys/startup_gcc.o
  .text.IntDefaultHandler
-                0x00000c20        0x2 objs/sys/startup_gcc.o
- *fill*         0x00000c22        0x2 
+                0x000009dc        0x2 objs/sys/startup_gcc.o
+ *fill*         0x000009de        0x2 
  .text.ResetISR
-                0x00000c24       0x50 objs/sys/startup_gcc.o
-                0x00000c24                ResetISR
+                0x000009e0       0x50 objs/sys/startup_gcc.o
+                0x000009e0                ResetISR
  *(.rodata*)
- .rodata.print_angles.str1.4
-                0x00000c74      0x143 objs/src/lidar.o
-                                  0xb (size before relaxing)
+ .rodata.process_points.str1.4
+                0x00000a30       0x8f objs/src/lidar.o
+                                  0x7 (size before relaxing)
+ .rodata.map_to_degree.str1.4
+                0x00000abf        0xc objs/src/lidar.o
  .rodata.process_packets.str1.4
-                0x00000db7       0xaf objs/src/lidar.o
+                0x00000abf        0x2 objs/src/lidar.o
  .rodata.main.str1.4
-                0x00000db7       0x6e objs/src/main.o
+                0x00000abf       0x5d objs/src/main.o
  .rodata.print_float.str1.4
-                0x00000db7       0x17 objs/src/uart_print.o
-                0x00000db7                        _etext = .
+                0x00000abf       0x17 objs/src/uart_print.o
+                0x00000abf                        _etext = .
 
-.glue_7         0x00000db8        0x0
- .glue_7        0x00000db8        0x0 linker stubs
+.glue_7         0x00000ac0        0x0
+ .glue_7        0x00000ac0        0x0 linker stubs
 
-.glue_7t        0x00000db8        0x0
- .glue_7t       0x00000db8        0x0 linker stubs
+.glue_7t        0x00000ac0        0x0
+ .glue_7t       0x00000ac0        0x0 linker stubs
 
-.vfp11_veneer   0x00000db8        0x0
- .vfp11_veneer  0x00000db8        0x0 linker stubs
+.vfp11_veneer   0x00000ac0        0x0
+ .vfp11_veneer  0x00000ac0        0x0 linker stubs
 
-.v4_bx          0x00000db8        0x0
- .v4_bx         0x00000db8        0x0 linker stubs
+.v4_bx          0x00000ac0        0x0
+ .v4_bx         0x00000ac0        0x0 linker stubs
 
-.iplt           0x00000db8        0x0
- .iplt          0x00000db8        0x0 objs/src/lidar.o
+.iplt           0x00000ac0        0x0
+ .iplt          0x00000ac0        0x0 objs/src/lidar.o
 
-.rel.dyn        0x00000db8        0x0
- .rel.iplt      0x00000db8        0x0 objs/src/lidar.o
+.rel.dyn        0x00000ac0        0x0
+ .rel.iplt      0x00000ac0        0x0 objs/src/lidar.o
 
-.data           0x20000000        0x0 load address 0x00000db7
+.data           0x20000000        0x1 load address 0x00000abf
                 0x20000000                        _data = .
  *(vtable)
  *(.data*)
-                0x20000000                        _edata = .
+ .data.comm_state.6
+                0x20000000        0x1 objs/src/lidar.o
+                0x20000001                        _edata = .
 
-.igot.plt       0x20000000        0x0
- .igot.plt      0x20000000        0x0 objs/src/lidar.o
+.igot.plt       0x20000004        0x0 load address 0x00000ac4
+ .igot.plt      0x20000004        0x0 objs/src/lidar.o
 
-.bss            0x20000000     0x1220
-                0x20000000                        _bss = .
+.bss            0x20000008      0x400 load address 0x00000ac8
+                0x20000008                        _bss = .
  *(.bss*)
- .bss.msb.0     0x20000000        0x1 objs/src/lidar.o
- .bss.lsb.1     0x20000001        0x1 objs/src/lidar.o
- *fill*         0x20000002        0x2 
- .bss.scan_count.2
-                0x20000004        0x4 objs/src/lidar.o
- .bss.current_scan.3
-                0x20000008        0xa objs/src/lidar.o
- *fill*         0x20000012        0x2 
- .bss.current_message.4
-                0x20000014        0x7 objs/src/lidar.o
- *fill*         0x2000001b        0x1 
+ .bss.high.0    0x20000008        0x1 objs/src/lidar.o
+ .bss.low.1     0x20000009        0x1 objs/src/lidar.o
+ *fill*         0x2000000a        0x2 
+ .bss.current_point.2
+                0x2000000c        0x4 objs/src/lidar.o
+ .bss.scan_points.3
+                0x20000010      0x2d0 objs/src/lidar.o
+ .bss.current_scan.4
+                0x200002e0        0xa objs/src/lidar.o
+ *fill*         0x200002ea        0x2 
  .bss.current_byte.5
-                0x2000001c        0x2 objs/src/lidar.o
- .bss.comm_state.6
-                0x2000001e        0x1 objs/src/lidar.o
- *fill*         0x2000001f        0x1 
- .bss.receiving_point_buffer
-                0x20000020        0x4 objs/src/lidar.o
-                0x20000020                receiving_point_buffer
- .bss.active_point_buffer
-                0x20000024        0x4 objs/src/lidar.o
-                0x20000024                active_point_buffer
- .bss.points_smooth
-                0x20000028      0x5a0 objs/src/lidar.o
-                0x20000028                points_smooth
- .bss.points_buf_1
-                0x200005c8      0x5a0 objs/src/lidar.o
-                0x200005c8                points_buf_1
- .bss.points_buf_0
-                0x20000b68      0x5a0 objs/src/lidar.o
-                0x20000b68                points_buf_0
+                0x200002ec        0x4 objs/src/lidar.o
  .bss.second_counter.0
-                0x20001108        0x1 objs/src/timers.o
- *fill*         0x20001109        0x7 
+                0x200002f0        0x1 objs/src/timers.o
+ *fill*         0x200002f1        0x7 
  .bss.timer1_overflow_count
-                0x20001110        0x8 objs/src/timers.o
-                0x20001110                timer1_overflow_count
+                0x200002f8        0x8 objs/src/timers.o
+                0x200002f8                timer1_overflow_count
  .bss.uptime_seconds
-                0x20001118        0x4 objs/src/timers.o
-                0x20001118                uptime_seconds
+                0x20000300        0x4 objs/src/timers.o
+                0x20000300                uptime_seconds
  .bss.chars_sent_recently.0
-                0x2000111c        0x4 objs/src/uart_print.o
- .bss.pulStack  0x20001120      0x100 objs/sys/startup_gcc.o
+                0x20000304        0x4 objs/src/uart_print.o
+ .bss.pulStack  0x20000308      0x100 objs/sys/startup_gcc.o
  *(COMMON)
-                0x20001220                        _ebss = .
+                0x20000408                        _ebss = .
 OUTPUT(objs/lidar.axf elf32-littlearm)
 LOAD linker stubs
 
-.debug_info     0x00000000     0x13b0
- .debug_info    0x00000000      0x90a objs/src/lidar.o
- .debug_info    0x0000090a      0x26e objs/src/main.o
- .debug_info    0x00000b78      0x17e objs/src/timers.o
- .debug_info    0x00000cf6      0x523 objs/src/uart_print.o
- .debug_info    0x00001219      0x197 objs/sys/startup_gcc.o
+.debug_info     0x00000000     0x10c6
+ .debug_info    0x00000000      0x6bf objs/src/lidar.o
+ .debug_info    0x000006bf      0x1bd objs/src/main.o
+ .debug_info    0x0000087c      0x17e objs/src/timers.o
+ .debug_info    0x000009fa      0x535 objs/src/uart_print.o
+ .debug_info    0x00000f2f      0x197 objs/sys/startup_gcc.o
 
-.debug_abbrev   0x00000000      0x796
- .debug_abbrev  0x00000000      0x2e9 objs/src/lidar.o
- .debug_abbrev  0x000002e9       0xb8 objs/src/main.o
- .debug_abbrev  0x000003a1      0x114 objs/src/timers.o
- .debug_abbrev  0x000004b5      0x1cb objs/src/uart_print.o
- .debug_abbrev  0x00000680      0x116 objs/sys/startup_gcc.o
+.debug_abbrev   0x00000000      0x6fa
+ .debug_abbrev  0x00000000      0x24d objs/src/lidar.o
+ .debug_abbrev  0x0000024d       0xb8 objs/src/main.o
+ .debug_abbrev  0x00000305      0x114 objs/src/timers.o
+ .debug_abbrev  0x00000419      0x1cb objs/src/uart_print.o
+ .debug_abbrev  0x000005e4      0x116 objs/sys/startup_gcc.o
 
 .debug_loclists
-                0x00000000      0x485
+                0x00000000      0x4df
  .debug_loclists
-                0x00000000      0x203 objs/src/lidar.o
+                0x00000000      0x25d objs/src/lidar.o
  .debug_loclists
-                0x00000203       0x2a objs/src/timers.o
+                0x0000025d       0x2a objs/src/timers.o
  .debug_loclists
-                0x0000022d      0x212 objs/src/uart_print.o
+                0x00000287      0x212 objs/src/uart_print.o
  .debug_loclists
-                0x0000043f       0x46 objs/sys/startup_gcc.o
+                0x00000499       0x46 objs/sys/startup_gcc.o
 
 .debug_aranges  0x00000000      0x138
  .debug_aranges
@@ -231,32 +216,32 @@ LOAD linker stubs
                 0x00000100       0x38 objs/sys/startup_gcc.o
 
 .debug_rnglists
-                0x00000000      0x100
+                0x00000000      0x102
  .debug_rnglists
-                0x00000000       0x60 objs/src/lidar.o
+                0x00000000       0x63 objs/src/lidar.o
  .debug_rnglists
-                0x00000060       0x14 objs/src/main.o
+                0x00000063       0x13 objs/src/main.o
  .debug_rnglists
-                0x00000074       0x1f objs/src/timers.o
+                0x00000076       0x1f objs/src/timers.o
  .debug_rnglists
-                0x00000093       0x48 objs/src/uart_print.o
+                0x00000095       0x48 objs/src/uart_print.o
  .debug_rnglists
-                0x000000db       0x25 objs/sys/startup_gcc.o
+                0x000000dd       0x25 objs/sys/startup_gcc.o
 
-.debug_line     0x00000000      0xe1e
- .debug_line    0x00000000      0x5f0 objs/src/lidar.o
- .debug_line    0x000005f0       0xde objs/src/main.o
- .debug_line    0x000006ce      0x1f4 objs/src/timers.o
- .debug_line    0x000008c2      0x424 objs/src/uart_print.o
- .debug_line    0x00000ce6      0x138 objs/sys/startup_gcc.o
+.debug_line     0x00000000      0xc86
+ .debug_line    0x00000000      0x462 objs/src/lidar.o
+ .debug_line    0x00000462       0xd3 objs/src/main.o
+ .debug_line    0x00000535      0x1f4 objs/src/timers.o
+ .debug_line    0x00000729      0x425 objs/src/uart_print.o
+ .debug_line    0x00000b4e      0x138 objs/sys/startup_gcc.o
 
-.debug_str      0x00000000      0x635
- .debug_str     0x00000000      0x635 objs/src/lidar.o
-                                0x487 (size before relaxing)
- .debug_str     0x00000635      0x1e7 objs/src/main.o
- .debug_str     0x00000635      0x23e objs/src/timers.o
- .debug_str     0x00000635      0x26a objs/src/uart_print.o
- .debug_str     0x00000635      0x1fe objs/sys/startup_gcc.o
+.debug_str      0x00000000      0x563
+ .debug_str     0x00000000      0x563 objs/src/lidar.o
+                                0x3c8 (size before relaxing)
+ .debug_str     0x00000563      0x1f3 objs/src/main.o
+ .debug_str     0x00000563      0x23e objs/src/timers.o
+ .debug_str     0x00000563      0x26a objs/src/uart_print.o
+ .debug_str     0x00000563      0x1fe objs/sys/startup_gcc.o
 
 .comment        0x00000000       0x23
  .comment       0x00000000       0x23 objs/src/lidar.o
@@ -279,9 +264,9 @@ LOAD linker stubs
  .ARM.attributes
                 0x000000d0       0x34 objs/sys/startup_gcc.o
 
-.debug_frame    0x00000000      0x2dc
- .debug_frame   0x00000000       0xf0 objs/src/lidar.o
- .debug_frame   0x000000f0       0x28 objs/src/main.o
- .debug_frame   0x00000118       0x64 objs/src/timers.o
- .debug_frame   0x0000017c      0x108 objs/src/uart_print.o
- .debug_frame   0x00000284       0x58 objs/sys/startup_gcc.o
+.debug_frame    0x00000000      0x2ec
+ .debug_frame   0x00000000      0x100 objs/src/lidar.o
+ .debug_frame   0x00000100       0x28 objs/src/main.o
+ .debug_frame   0x00000128       0x64 objs/src/timers.o
+ .debug_frame   0x0000018c      0x108 objs/src/uart_print.o
+ .debug_frame   0x00000294       0x58 objs/sys/startup_gcc.o

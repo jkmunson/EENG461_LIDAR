@@ -10,4 +10,4 @@ objs/src/main.o: src/main.c \
  driver/inc/hw_sysctl.h driver/inc/hw_memmap.h \
  driver/common/tm4c123gh6pm.h driver/driverlib/rom.h \
  driver/driverlib/sysctl.h src/main.h src/timers.h src/uart_print.h \
- src/lidar.h
+ src/lidar.h /usr/lib/gcc/arm-none-eabi/13.2.0/include/stddef.h

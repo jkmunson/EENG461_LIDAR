@@ -26,29 +26,20 @@ int main (void) {
 	printlf("Stopping Lidar scan\n");
 	stop_lidar_scan();
 	printlf("Flushing Lidar buffer\n");
+	ROM_SysCtlDelay(1000000);
 	clear_lidar_IO();
-	__asm("CPSIE I");
-	ROM_SysCtlDelay(20000000);
-	//ROM_SysCtlDelay(20000000);
-	//ROM_SysCtlDelay(20000000);
-	//ROM_SysCtlDelay(20000000);
-	printlf("Starting lidar scan#####################\n");
-	clear_lidar_IO();
-	ROM_SysCtlDelay(20000);
-	ROM_UARTCharPut(UART2_BASE, 0xA5);
-	ROM_UARTCharPut(UART2_BASE, 0x0B);
-	ROM_UARTCharPut(UART2_BASE, 0xA5);
-	ROM_UARTCharPut(UART2_BASE, 0x0B);
-	ROM_UARTCharPut(UART2_BASE, 0xA5);
-	ROM_UARTCharPut(UART2_BASE, 0x0B);
-	ROM_UARTCharPut(UART2_BASE, 0xA5);
-	ROM_UARTCharPut(UART2_BASE, 0x0B);
-	clear_lidar_IO();
+	printlf("Starting Scan\n");
 	start_lidar_scan();
-	
+	printlf("Looping\n");
 	while(1) {
 		process_packets();
 	}
 	
 	return (0);
 }
+
+/*//printlf("%d:%d\n", ROM_UARTCharGet(UART2_BASE), ROM_UARTRxErrorGet(UART2_BASE));
+		//ROM_UARTCharPut(UART0_BASE, ROM_UARTCharGet(UART2_BASE));
+		printlf("%d\n", ROM_UARTRxErrorGet(UART2_BASE), ROM_UARTCharGet(UART2_BASE));
+		//ROM_UARTCharPut(UART0_BASE, ROM_UARTRxErrorGet(UART2_BASE));
+		ROM_UARTRxErrorClear(UART2_BASE);*/

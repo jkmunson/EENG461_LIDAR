@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #define POINTS_BUF_SIZE 360
 extern uint32_t *active_point_buffer;
