@@ -28,6 +28,8 @@ int main (void) {
 	printlf("Flushing Lidar buffer\n");
 	ROM_SysCtlDelay(1000000);
 	clear_lidar_IO();
+	
+	//Speed the lidar up to max
 	ROM_UARTCharPut(UART2_BASE, 0xA5);
 	ROM_UARTCharPut(UART2_BASE, 0x0B);
 	ROM_UARTCharPut(UART2_BASE, 0xA5);
@@ -43,12 +45,34 @@ int main (void) {
 	printlf("Looping\n");
 	int i = 0;
 	while(1) {
-		//if(g_conditioned_points[i]) 
-		//printlf("%d:%d\n", i, g_points[i]);
 		printlf("%d:%d\n", i, g_conditioned_points[i]);
 		process_packets();
 		i = (i+1)%360;
-
+		if(!i) {
+			bool drive_okay = false;
+			//Check if good to drive - Average distance in cone of 90 deg in front must be > 1m
+			int32_t avg_forward_distance = 0;
+			for(int j = 135; j < 225; j++){
+				avg_forward_distance += g_conditioned_points[j];
+			}
+			if(avg_forward_distance > 1000) drive_okay = true;
+			
+			//Calculate best forward angle
+			uint16_t *possible_angles = g_pt_buf; //Re-using this global buffer
+			int n = 0;
+			for(int j = 90; j < 270; j+= 5, n++){
+				int32_t avg_distance = 0;
+				for(int k = 0; k < 10; k++) avg_distance += g_conditioned_points[j+k] + g_conditioned_points[j-k];
+				possible_angles[n] = avg_distance/20;
+			}
+			int best_angle = 0;
+			uint16_t best_value = possible_angles[0];
+			for(;n;--n) {
+				if(possible_angles[n] > best_value) best_value = possible_angles[n], best_angle = n;
+			}
+			
+			printlf("*%d|%d\n", (best_angle*5)-90, (uint32_t) best_value);
+		}
 	}
 	
 	return (0);

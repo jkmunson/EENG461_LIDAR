@@ -3,7 +3,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-extern uint16_t g_points[361]; //Most up to date points, up to 1 second stale
+extern uint16_t g_points[361]; //Most up to date points, up to 1 second stale. position 360 is "dead letter" box
+extern uint16_t g_pt_buf[361];
 extern uint16_t g_conditioned_points[361]; //Holes drawn in
 
 struct __attribute__((packed)) HeaderFields{
