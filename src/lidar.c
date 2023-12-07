@@ -1,5 +1,6 @@
 #include "lidar.h"
 #include "uart_print.h"
+#include "timers.h"
 
 #include "driverlib/uart.h"
 #include "driverlib/rom.h"
@@ -33,51 +34,66 @@
 #define SCAN_MAGIC_1 0x55
 
 #define DEBUG_LID
-/*
-void process_point_buff(){
-	for(int i = 0; i < POINTS_BUF_SIZE; i++){
-		
-		if(receiving_point_buffer[i] != 0) continue;
-		//Find closest point to the "left" that has a value
-		int leftidx = (i == 0) ? (POINTS_BUF_SIZE-1) : (i-1);
-		bool from_top = (leftidx > 0);
-		while ((receiving_point_buffer[leftidx] == 0)) {
-			leftidx--;
-			if (leftidx < 0) {
-				if(from_top){
-					receiving_point_buffer[i] = 1; // No data was collected from lidar???
-					continue;
-				} else {
-					leftidx = (POINTS_BUF_SIZE-1);
-					from_top = true;
-				}
+
+uint16_t g_points[361];
+uint16_t g_conditioned_points[361];
+uint16_t g_pt_buf[361];
+
+//VERY IMPORTANT: This function has a time budget of 40000 cycles, to avoid losing data in the fifo
+void process_points(){
+	static int32_t last_time = 0;
+	//#### GNU extension: nested helper functions
+	bool has_holes(uint16_t *points) {
+		for(int i = 0; i < 360; i++) if(!points[i]) return true;
+		return false;
+	}
+	
+	int count_points(void) {
+		int count = 0;
+		for(int i = 0; i < 360; i++) {
+			if(g_points[i]) {
+				count++;
 			}
 		}
-		
-		//Find closest point to the right that has a value
-		int rightidx = (i+1 < POINTS_BUF_SIZE) ? (i+1) : 0;
-		bool from_0 = !rightidx;
-		while(receiving_point_buffer[rightidx] == 0) {
-			if(++rightidx >= POINTS_BUF_SIZE){
-				if(from_0) {
-					receiving_point_buffer[i] = 1; // No data was collected from lidar?
-					continue;
-				} else {
-					rightidx = 0;
-					from_0 = true;
-				}
-			}
+		return count;
+	}
+	
+	//reminder, c does not have a modulo operator. It has a remainder operator.
+	int bounded_idx(int idx) {
+		while(idx < 0) idx += 360;
+		return idx % 360;
+	}
+	
+	//Wipe the point buffer every second - prevent overly stale points accumulating
+	if(last_time != uptime_seconds){
+		//printlf("Wiping buffer\n");
+		for(int j = 0; j < 360; j++) {
+			g_points[j] = 0;
 		}
-		receiving_point_buffer[i] = (receiving_point_buffer[leftidx] + receiving_point_buffer[rightidx])/2;
+		last_time = uptime_seconds;
 	}
-}*/
+	
+	if(count_points() < 180) return; //Want at least this many points before we process this
 
-void process_points(uint16_t *scan_points){
-
-	for(int i = 0; i < 360; i++) {
-		printlf("%d:%d\n", i, scan_points[i]);
-		scan_points[i] = 0;
+	uint16_t *temp = g_pt_buf;
+	for(int i = 0; i < 360; i++) temp[i] = g_points[i];
+	int iter = 0;
+	while(has_holes(temp)) {
+		int left = 0, right, mid; //indexes of start and end of a gap
+		// find a point that is missing
+		while(temp[left]) left++;
+		while(!temp[bounded_idx(left-1)]) left--;
+		left -= 1;
+		right = left;
+		while(!temp[bounded_idx(right+1)]) right++; // walk to right, find last empty point
+		right += 1;
+		left = bounded_idx(left);
+		right = bounded_idx(right);
+		int diff = bounded_idx(right - left);
+		mid = bounded_idx(left + diff/2);
+		temp[mid] = (temp[left] + temp[right])/2;
 	}
+	for(int i = 0; i < 360; i++) g_conditioned_points[i] = temp[i];
 }
 
 void setup_lidar_comms(void){
@@ -113,13 +129,10 @@ void clear_lidar_IO(void){
 	}
 }
 
-uint16_t map_to_degree(uint16_t start, uint16_t end, uint16_t num){
-	float delta = ((float)end)/64.0f - ((float)start)/64.0f;
-	float degree = (float)start + (delta * num);
-	
-	#ifdef DEBUG_LID
-	if(degree < 0 || degree >360) printlf("BAD ANGLE?\n");
-	#endif
+uint16_t map_to_degree(uint16_t start, uint16_t end, uint16_t count, uint16_t num){
+	float delta = (((float)end)/64.0f - ((float)start)/64.0f)/(float)count;
+	float degree = ((float)start)/64.0f + (delta * num);
+	if(delta < 0 || degree < 0 || degree > 359) return 360; // 360 is a safe, do nothing location to write points that have angles that don't make sense.
 	return (uint16_t)degree;
 }
 
@@ -127,12 +140,19 @@ uint16_t convert_to_mm(uint16_t point){
 	return point >> 2; //divide by 4
 }
 
-//Returns true if header fails checksum & other verification
+//Returns true if header fails verification
 bool check_header(ScanHeader *head) {
+	//printlf("Magic\n");
 	if(head->header.start_code != SCAN_MAGIC) return true; //incorret start word
+	//printlf("Start A\n");
 	if(!(head->header.start_angle & 0x1)) return true; //incorrect angle data
+	//printlf("End A\n");
 	if(!(head->header.end_angle & 0x1)) return true; //incorrect angle data
-	
+	return false;
+}
+
+//calculates checksum of header
+uint16_t checksum_header(ScanHeader *head) {
 	uint16_t checksum = 0;
 	//size minus 2 - don't include checksum word
 	for(size_t i = 0; i < sizeof(*head) - 2; ) {
@@ -140,8 +160,8 @@ bool check_header(ScanHeader *head) {
 		uint8_t high = head->bytes[i++];
 		checksum ^= (high << 8) | low;
 	}
-	
-	return (checksum != head->header.checksum);
+
+	return checksum;
 }
 
 void process_packets(void) {
@@ -149,11 +169,16 @@ void process_packets(void) {
 	static uint32_t current_byte = 0;
 	static ScanHeader current_scan;
 	static uint32_t current_point = 0;
-	static uint16_t scan_points[360];
+	static uint16_t checksum = 0;
 	
 	while(ROM_UARTCharsAvail(LID_BASE)) {
 		uint8_t received = ROM_UARTCharGet(LID_BASE);
-		if(ROM_UARTRxErrorGet(UART2_BASE)) goto reset;
+		if(ROM_UARTRxErrorGet(UART2_BASE)) {
+			#ifdef DEBUG_LID
+			printlf("x");
+			#endif
+			goto reset;
+		}
 		
 		switch(comm_state) {
 		//Haven't started a data packet yet - look for magic header
@@ -162,6 +187,7 @@ void process_packets(void) {
 				switch(current_byte++) {
 					case 0:
 						if(received != SCAN_MAGIC_0) goto reset;
+						//printlf("B0\n");
 						current_scan.bytes[0] = received;
 					break;
 				
@@ -169,13 +195,14 @@ void process_packets(void) {
 						if(received != SCAN_MAGIC_1) goto reset;
 						current_scan.bytes[1] = received;
 						comm_state = RECEIVING_SCAN_HEADER;
+						//printlf("B1\n");
 					break;
 				}
 			} break;
 		
 			case RECEIVING_SCAN_HEADER:{
 				current_scan.bytes[current_byte++] = received;
-				
+				//printlf("h%d\n",current_byte);
 				//Still receiving the header
 				if(current_byte < sizeof(current_scan)) continue;
 				
@@ -183,13 +210,14 @@ void process_packets(void) {
 				
 				//Start of a new scan sequence - process the last, complete, scan sequence
 				if(current_scan.header.type == START_PACKET) {
-					process_points(scan_points);
+					process_points();
 					goto reset;
 				}
 				
 				//Header is good, read in the points
 				current_byte = 0;
 				current_point = 0;
+				checksum = checksum_header(&current_scan);
 				comm_state = RECEIVING_SCAN_DATA;
 			} break;
 			
@@ -199,18 +227,28 @@ void process_packets(void) {
 				switch(current_byte){
 					case 0:
 						low = received;
+						current_byte = 1;
 					break;
 					
 					case 1: 
+						current_byte = 0;
 						high = received;
-						uint16_t point = (high << 8) | low;
-						uint16_t angle = map_to_degree(current_scan.header.start_angle>>1, current_scan.header.end_angle>>1, current_point);
-						
+						uint16_t point = ((high&0xff) << 8) | low; //High is actually the 7 leftmost bits.
+						checksum ^= point;
+						if(!(point & 0x80)) goto skip;
+						uint16_t angle = map_to_degree(current_scan.header.start_angle>>1, current_scan.header.end_angle>>1, current_scan.header.sample_count, current_point);
+						//printlf("P%d:A%d:L%d\n", current_point, angle, point);
 						//Only read in the first point at a particular degree. Overwrite "0" points
-						if(!scan_points[angle]) scan_points[angle] = convert_to_mm(point);
-						
+						uint16_t tmp = convert_to_mm(point);
+						//These values appear mixed into otherwise valid data: maybe they are meant to mean something? In any case, these points are JUNK almost always
+						//if(tmp == 1684 || tmp == 8192 || tmp == 3223 || tmp == 256 || tmp == 16 || tmp == 360 || tmp == 3636 || tmp > 4000) goto skip;
+						if(tmp) g_points[angle] = tmp;
+						skip:
 						//If we've read in all the points available in this packet, reset for the next packet.
-						if(++current_point >= current_scan.header.sample_count) goto reset;
+						if(++current_point >= current_scan.header.sample_count) {
+							if(checksum != current_scan.header.checksum) printlf("Bad Checksum\n");
+							goto reset;
+						}
 					break;
 				}
 				
@@ -226,7 +264,7 @@ void process_packets(void) {
 	current_point = 0;
 	comm_state = WAITING_SCAN_HEADER;
 	#ifdef DEBUG_LID
-	printlf("R");
+	//printlf("R\n");
 	#endif
 }
 

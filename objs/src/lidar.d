@@ -7,7 +7,19 @@ objs/src/lidar.o: src/lidar.c src/lidar.h \
  /usr/arm-none-eabi/include/sys/_intsup.h \
  /usr/arm-none-eabi/include/sys/_stdint.h \
  /usr/lib/gcc/arm-none-eabi/13.2.0/include/stdbool.h \
- /usr/lib/gcc/arm-none-eabi/13.2.0/include/stddef.h src/uart_print.h \
+ /usr/lib/gcc/arm-none-eabi/13.2.0/include/stddef.h \
+ /usr/arm-none-eabi/include/stdlib.h \
+ /usr/arm-none-eabi/include/machine/ieeefp.h \
+ /usr/arm-none-eabi/include/_ansi.h /usr/arm-none-eabi/include/newlib.h \
+ /usr/arm-none-eabi/include/sys/config.h \
+ /usr/arm-none-eabi/include/sys/reent.h \
+ /usr/arm-none-eabi/include/_ansi.h \
+ /usr/arm-none-eabi/include/sys/_types.h \
+ /usr/arm-none-eabi/include/machine/_types.h \
+ /usr/arm-none-eabi/include/sys/lock.h \
+ /usr/arm-none-eabi/include/sys/cdefs.h \
+ /usr/arm-none-eabi/include/machine/stdlib.h \
+ /usr/arm-none-eabi/include/alloca.h src/uart_print.h src/timers.h \
  driver/driverlib/uart.h driver/driverlib/rom.h driver/driverlib/gpio.h \
  driver/driverlib/sysctl.h driver/inc/hw_uart.h driver/inc/hw_sysctl.h \
  driver/inc/hw_memmap.h driver/common/tm4c123gh6pm.h

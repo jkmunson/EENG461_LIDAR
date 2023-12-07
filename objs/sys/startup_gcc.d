@@ -17,4 +17,6 @@ objs/sys/startup_gcc.o: sys/startup_gcc.c \
  /usr/arm-none-eabi/include/machine/_types.h \
  /usr/arm-none-eabi/include/sys/lock.h \
  /usr/arm-none-eabi/include/sys/cdefs.h \
+ /usr/arm-none-eabi/include/sys/_locale.h \
+ /usr/arm-none-eabi/include/strings.h \
  /usr/arm-none-eabi/include/sys/string.h

@@ -1,9 +1,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 
-#define POINTS_BUF_SIZE 360
-extern uint32_t *active_point_buffer;
+extern uint16_t g_points[361]; //Most up to date points, up to 1 second stale
+extern uint16_t g_conditioned_points[361]; //Holes drawn in
 
 struct __attribute__((packed)) HeaderFields{
 	uint16_t start_code;

@@ -32,7 +32,8 @@ void putchar(char c) {
 	//Really dumb, but avoid overwhelming ICDI
 	if(++chars_sent_recently > 7) {
 		chars_sent_recently = 0;
-		for(int i = 0; i < 180; i++) {
+		//Yes, the delay has to be this long
+		for(int i = 0; i < 280; i++) {
 			__asm("mov r1,r1\n");
 		}
 	}
