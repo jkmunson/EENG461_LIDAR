@@ -175,7 +175,7 @@ void process_packets(void) {
 		uint8_t received = ROM_UARTCharGet(LID_BASE);
 		if(ROM_UARTRxErrorGet(UART2_BASE)) {
 			#ifdef DEBUG_LID
-			printlf("x");
+			//printlf("x");
 			#endif
 			goto reset;
 		}
@@ -246,7 +246,7 @@ void process_packets(void) {
 						skip:
 						//If we've read in all the points available in this packet, reset for the next packet.
 						if(++current_point >= current_scan.header.sample_count) {
-							if(checksum != current_scan.header.checksum) printlf("Bad Checksum\n");
+							if(checksum != current_scan.header.checksum) ;//printlf("Bad Checksum\n");
 							goto reset;
 						}
 					break;
